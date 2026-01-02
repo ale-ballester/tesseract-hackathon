@@ -36,7 +36,7 @@ y0 = (pos, vel)
 
 pic = PICSimulation(boxsize, N_particles, N_mesh, n0, dt, t1, t0=0, higher_moments=True)
 
-modes = build_rfftn_modes_single(pic.n_steps, pic.N_mesh, n=1, m=5, A=1e5, phi_t=0.0, phi_x=0.0)
+modes = build_rfftn_modes_single(pic.n_steps, pic.N_mesh, n=3, m=5, A=1e5, phi_t=0.0, phi_x=0.0)
 
 E_control = FourierActuator(pic.n_steps,pic.N_mesh,modes=modes)
 
