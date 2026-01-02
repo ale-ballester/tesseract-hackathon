@@ -25,31 +25,53 @@ def build_rfftn_modes_single(Nt, Nx, *, n, m, A=1.0, phi_t=0.0, phi_x=0.0, dtype
 
     return modes
 
-def enforce_time_hermitian(w, Nt):
-    """
-    w: (Nt//2+1, Nx_rfft) complex -- independent time frequencies.
-    returns modes: (Nt, Nx_rfft) complex satisfying modes[Nt-n] = conj(modes[n])
-    """
-    Nt_pos = Nt//2 + 1
-    assert w.shape[0] == Nt_pos
+import jax.numpy as jnp
 
-    # Start with zeros
-    modes = jnp.zeros((Nt, w.shape[1]), dtype=w.dtype)
+def enforce_time_hermitian(w, Nt, Nx_rfft=None):
+    """
+    w: (T_keep, X_keep) complex, where
+       T_keep <= Nt//2+1 and X_keep <= Nx_rfft (if Nx_rfft is provided).
+       Missing higher (time,space) coefficients are assumed zero.
+
+    Nt: full time length in the complex FFT domain (for time dimension).
+    Nx_rfft: desired full spatial rFFT length (Nx//2+1). If None, uses w.shape[1].
+
+    returns
+    -------
+    modes: (Nt, Nx_rfft) complex satisfying
+           modes[0] real, modes[Nt//2] real (if Nt even),
+           and modes[Nt-n] = conj(modes[n]) for time.
+    """
+    Nt_pos = Nt // 2 + 1
+    if Nx_rfft is None:
+        Nx_rfft = w.shape[1]
+
+    # How much we actually got
+    T_keep = min(w.shape[0], Nt_pos)
+    X_keep = min(w.shape[1], Nx_rfft)
+
+    # Pad/crop w into a full positive-frequency array w_full of shape (Nt_pos, Nx_rfft)
+    w_full = jnp.zeros((Nt_pos, Nx_rfft), dtype=w.dtype)
+    w_full = w_full.at[:T_keep, :X_keep].set(w[:T_keep, :X_keep])
+
+    # Now enforce Hermitian symmetry in time for the full-length modes
+    modes = jnp.zeros((Nt, Nx_rfft), dtype=w.dtype)
 
     # DC must be real
-    modes = modes.at[0].set(jnp.real(w[0]))
+    modes = modes.at[0].set(jnp.real(w_full[0]))
 
-    # Positive frequencies
-    modes = modes.at[1:Nt_pos].set(w[1:Nt_pos])
+    # Positive frequencies (1..Nt_pos-1)
+    if Nt_pos > 1:
+        modes = modes.at[1:Nt_pos].set(w_full[1:Nt_pos])
 
-    # Negative frequencies via conjugate symmetry
-    # These correspond to n = Nt_pos .. Nt-1  <-> 1..Nt_pos-2
+    # Negative frequencies via conjugate symmetry:
+    # indices Nt_pos..Nt-1 correspond to conj of (Nt_pos-1..1)
     if Nt_pos > 2:
-        modes = modes.at[Nt_pos:Nt].set(jnp.conj(w[1:Nt_pos-1][::-1]))
+        modes = modes.at[Nt_pos:Nt].set(jnp.conj(w_full[1:Nt_pos-1][::-1]))
 
-    # Nyquist must be real when Nt even
+    # Nyquist must be real when Nt even (index Nt//2 == Nt_pos-1)
     if Nt % 2 == 0:
-        modes = modes.at[Nt//2].set(jnp.real(w[Nt//2]))
+        modes = modes.at[Nt // 2].set(jnp.real(w_full[Nt // 2]))
 
     return modes
 

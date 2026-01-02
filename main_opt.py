@@ -38,8 +38,8 @@ y0 = (pos, vel)
 
 pic = PICSimulation(boxsize, N_particles, N_mesh, n0, dt, t1, t0=0, higher_moments=True)
 
-modes = build_rfftn_modes_single(pic.n_steps, pic.N_mesh, n=1, m=5, A=1e5, phi_t=0.0, phi_x=0.0)
-modes = jnp.zeros_like(modes)
+modes = build_rfftn_modes_single(pic.n_steps, pic.N_mesh, n=1, m=1, A=1e5, phi_t=0.0, phi_x=0.0)
+modes = jnp.zeros_like(modes[:11,:11])
 
 E_control = FourierActuator(pic.n_steps,pic.N_mesh,modes=modes)
 
@@ -47,7 +47,7 @@ def loss_metric(pic):
     energy = jnp.mean((pic.E_field + pic.E_ext)**2)
     return energy
 
-optimizer = Optimizer(pic=pic,y0=y0,model=E_control,loss_metric=loss_metric,lr=1e-2)
+optimizer = Optimizer(pic=pic,y0=y0,model=E_control,loss_metric=loss_metric,lr=1e-1)
 
 E_control, train_losses, _ = optimizer.train(
     n_steps=5000, 
