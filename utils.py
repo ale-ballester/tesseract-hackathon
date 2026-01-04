@@ -18,3 +18,4 @@ def create_external_field(ts,A,phi_t,phi_x,n,m,boxsize,N_mesh):
     space_grid = jnp.linspace(0,boxsize,N_mesh,endpoint=False)
     u = A * jnp.sin(ts[:, None] * omega + phi_t) * jnp.sin(space_grid * k + phi_x)
     return u
+

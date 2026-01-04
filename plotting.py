@@ -2,7 +2,10 @@ import os
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
-from IPython.display import HTML
+try:
+    from IPython.display import HTML
+except ImportError:
+    HTML = None  # IPython not available (e.g., in Docker)
 
 def _maybe_save_or_show(fig, save_path=None, dpi=200):
     """If save_path is None -> show; else save and close."""
@@ -85,7 +88,9 @@ def scatter_animation(
         print(f"Saved animation to {save_path}")
 
     plt.close(fig)  # avoid duplicate static image
-    return HTML(anim.to_jshtml())
+    if HTML is not None:
+        return HTML(anim.to_jshtml())
+    return None
 
 
 def plot_pde_solution(ts, y, boxsize, name="", label="", save_path=None):
@@ -194,3 +199,4 @@ def plot_modes(ts, y, max_mode_spect, max_mode_time, boxsize, num=4, zero_mean=T
     plt.tight_layout()
 
     _maybe_save_or_show(fig2, save_path=save_path_growth)
+
