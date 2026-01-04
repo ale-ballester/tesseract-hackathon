@@ -40,6 +40,10 @@ pip install "jax[cpu]" equinox optax diffrax lineax matplotlib numpy
 
 
 ## **Architecture**
+### Particle in Cell (PIC)
+Implemented in `pic_simulation.py`. A particle in cell simulation simulates the behavior of a plasma using an Euler-Langrange formulation.
+In this formulation, the probability density function is approximated by sampling discrete super-particles from the initial distribution. These particles represent some number of real particles in the plasma. The super-particles interact with external fields while self-consistently influencing each other through the Lorentz force, $m \frac{dv}{dt} = qE + q (v \times B)$. This project implements a 1D particle in cell simulation, simplifying the Lorentz force to $m \frac{dv}{dt} = qE$. The internal electric field is found by solving the Poisson equation on a grid, $\nabla^2 \Phi = -\frac{\rho}{\varepsilon}$, and the net electric field is found by summing this with the external electric field. The net electric field provides the particle accelerations through the Lorentz equation. A symplectic integrator is used to update the particle positions and velocities using this framework. See section 2.1 of "Regular sensitivity computation avoiding chaotic effects in particle-in-cell plasma methods" for a more in-depth explanation (https://doi.org/10.1016/j.jcp.2019.108969).
+
 ### Reduced-Order Model (ROM)
 Implemented in `rom.LDSModel`, the ROM is defined as `dx/dt = A x(t) + B u(t)`, where:
 - `x(t) in R^(n_out)`
