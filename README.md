@@ -11,7 +11,6 @@ conda create -n hck_tct jax -c conda-forge
 Build the tesseract:
 
 ```bash
-cd tesseract_ver
 conda activate hck_tct
 tesseract build .
 ```
@@ -28,7 +27,6 @@ pip install tesseract-core[runtime]
 Start the HTTP server:
 
 ```bash
-cd tesseract_ver
 conda activate hck_tct
 tesseract-runtime serve --host 0.0.0.0 --port 8545
 ```
