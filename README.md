@@ -1,5 +1,8 @@
 # PIC-ROM Optimization Tesseract
 
+[![Scatter Animation - ZIR](docs/scatter_zir.mp4)](docs/scatter_zir.mp4)
+Zero input case (ZIR) particle scatter animation.
+
 PIC (Particle-In-Cell) simulation with Fourier actuator control for plasma simulation. Supports three modes:
 - **optimization**: Optimizes the external field and then simulates with the trained external field
 - **resp**: Runs simulation with an oscillatory external input (fixed Fourier actuator)
@@ -174,5 +177,39 @@ The API also generates and logs the following artifacts (saved in the run direct
   - `energy_modes_spectrum.png` and `energy_modes_evolution.png`: Energy mode analysis
 
 - **Model checkpoints** (optimization case only, saved in `model/` subdirectory)
+
+## Showcase
+
+The following visualizations demonstrate the results from different simulation cases:
+
+### Training Loss (Optimization Case)
+
+The optimization case uses gradient-based optimization to minimize the electric field energy. The training loss decreases over optimization steps:
+
+![Training Loss](docs/training_loss.png)
+
+*Note: This shows the training loss for a 5000-step optimization run with all other parameters at default values.*
+
+### Energy Modes Evolution Comparison
+
+Comparison of energy modes evolution between optimized and zero-input cases:
+
+**Optimization Case (5000 steps, default parameters):**
+![Energy Modes Evolution - Optimization](docs/energy_modes_evolution_opt_5000step.png)
+
+**Zero Input Case (ZIR, default parameters):**
+![Energy Modes Evolution - ZIR](docs/energy_modes_evolution_zir.png)
+
+### Particle Scatter Animations
+
+Particle dynamics visualization showing the evolution of the particle distribution:
+
+**Optimization Case (5000 steps, default parameters):**
+[![Scatter Animation - Optimization](docs/scatter_opt_5000step.mp4)](docs/scatter_opt_5000step.mp4)
+
+**Zero Input Case (ZIR, default parameters):**
+[![Scatter Animation - ZIR](docs/scatter_zir.mp4)](docs/scatter_zir.mp4)
+
+*Note: The optimization case uses 5000 optimization steps with all other parameters at default values. The ZIR case uses default parameters with zero external field input.*
 
 See API docs at http://localhost:8545/docs for full parameter list.
