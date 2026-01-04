@@ -1,6 +1,7 @@
 # PIC-ROM Optimization Tesseract
 
 ![Scatter Animation - Optimization](docs/scatter_opt_5000step_small.gif)
+
 **PIC simulation with external field optimized for minimum electric field energy.**
 
 PIC (Particle-In-Cell) simulation with Fourier actuator control for plasma simulation. Supports three modes:
