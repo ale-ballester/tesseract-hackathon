@@ -50,7 +50,7 @@ def loss_metric(pic):
 optimizer = Optimizer(pic=pic,y0=y0,model=E_control,loss_metric=loss_metric,lr=1e-1)
 
 E_control, train_losses, _ = optimizer.train(
-    n_steps=5000, 
+    n_steps=10, 
     save_every=100, 
     seed=0, 
     print_status=True)
