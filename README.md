@@ -56,6 +56,7 @@ Can toggle between open-loop and closed-loop modes:
 Integration is performed using Diffrax.
 
 `save_model` and `load_model` methods allow for checkpointing and loading of saved models, respectively.
+
 A more accurate ROM which uses proper orthogonal decomposition and descrete empirical interpolation is under development in the following repository: https://github.com/TTBurnett/Plasma_ROMs/tree/hackathon_main. Due to time constraints, this ROM was not included in the current version of this project but will be included in a future version.
 
 ### Training
