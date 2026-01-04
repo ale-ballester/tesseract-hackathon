@@ -1,6 +1,7 @@
 # PIC-ROM Optimization Tesseract
 
-[![Scatter Animation - ZIR](docs/scatter_zir.mp4)](docs/scatter_zir.mp4)
+![Scatter Animation - ZIR](docs/scatter_zir_small.gif)
+
 Zero input case (ZIR) particle scatter animation.
 
 PIC (Particle-In-Cell) simulation with Fourier actuator control for plasma simulation. Supports three modes:
@@ -205,10 +206,10 @@ Comparison of energy modes evolution between optimized and zero-input cases:
 Particle dynamics visualization showing the evolution of the particle distribution:
 
 **Optimization Case (5000 steps, default parameters):**
-[![Scatter Animation - Optimization](docs/scatter_opt_5000step.mp4)](docs/scatter_opt_5000step.mp4)
+![Scatter Animation - Optimization](docs/scatter_opt_5000step_small.gif)
 
 **Zero Input Case (ZIR, default parameters):**
-[![Scatter Animation - ZIR](docs/scatter_zir.mp4)](docs/scatter_zir.mp4)
+![Scatter Animation - ZIR](docs/scatter_zir_small.gif)
 
 *Note: The optimization case uses 5000 optimization steps with all other parameters at default values. The ZIR case uses default parameters with zero external field input.*
 
