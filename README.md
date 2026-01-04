@@ -1,6 +1,9 @@
 # PIC-ROM Optimization Tesseract
 
-PIC (Particle-In-Cell) simulation optimization with Fourier actuator control for plasma simulation.
+PIC (Particle-In-Cell) simulation with Fourier actuator control for plasma simulation. Supports three modes:
+- **optimization**: Optimizes the external field and then simulates with the trained external field
+- **resp**: Runs simulation with an oscillatory external input (fixed Fourier actuator)
+- **zir**: Runs simulation with zero input (no external field)
 
 ## Installation
 Create a conda environment:
@@ -35,23 +38,34 @@ The API will be available at:
 - **API Docs**: http://localhost:8545/docs
 - **ReDoc**: http://localhost:8545/redoc
 
+## Simulation Cases
+
+The API supports three different simulation cases:
+
+1. **optimization** (default): Runs gradient-based optimization to find optimal Fourier actuator control parameters that minimize the electric field energy, then simulates with the trained external field.
+
+2. **resp**: Runs a simulation with an oscillatory external input (fixed Fourier actuator control with n=3, m=5, A=1e5) to observe system response to a known control input.
+
+3. **zir**: Runs a simulation with zero input (no external field), with mean-subtracted initial velocities.
+
 ## Test Cases
 
-### Default parameters
+### Optimization case (default)
 
 ```bash
 curl -X POST http://localhost:8545/apply \
   -H "Content-Type: application/json" \
-  -d '{"inputs": {}}'
+  -d '{"inputs": {"case": "optimization"}}'
 ```
 
-### Custom parameters
+### Optimization with custom parameters
 
 ```bash
 curl -X POST http://localhost:8545/apply \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
+      "case": "optimization",
       "N_particles": 10000,
       "N_mesh": 200,
       "t1": 10.0,
@@ -62,32 +76,46 @@ curl -X POST http://localhost:8545/apply \
   }'
 ```
 
+### Oscillatory external input case (resp)
+
+```bash
+curl -X POST http://localhost:8545/apply \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": {
+      "case": "resp",
+      "N_particles": 40000,
+      "N_mesh": 400,
+      "t1": 20.0,
+      "seed": 0
+    }
+  }'
+```
+
+### Zero input case (zir)
+
+```bash
+curl -X POST http://localhost:8545/apply \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": {
+      "case": "zir",
+      "N_particles": 40000,
+      "N_mesh": 400,
+      "t1": 20.0,
+      "seed": 0
+    }
+  }'
+```
+
 ## Input
 
 All parameters are optional (defaults shown):
 
-<!--     N_particles: int = Field(default=40000, description="Number of particles")
-    N_mesh: int = Field(default=400, description="Number of mesh cells")
-    t1: float = Field(default=20.0, description="Time at which simulation ends")
-    dt: float = Field(default=0.1, description="Timestep")
-    boxsize: float = Field(default=50.0, description="Periodic domain [0,boxsize]")
-    n0: float = Field(default=1.0, description="Electron number density")
-    vb: float = Field(default=3.0, description="Beam velocity")
-    vth: float = Field(default=1.0, description="Beam width")
-    pos_sample: bool = Field(default=False, description="Whether to sample positions randomly")
-    
-    # Optimization parameters
-    n_steps: int = Field(default=10, description="Number of optimization steps")
-    lr: float = Field(default=1e-1, description="Learning rate")
-    seed: int = Field(default=0, description="Random seed")
-    
-    # Initial modes parameters (for FourierActuator initialization)
-    mode_n: int = Field(default=1, description="Time mode index")
-    mode_m: int = Field(default=1, description="Space mode index")
-    mode_A: float = Field(default=1e5, description="Mode amplitude")
-    mode_phi_t: float = Field(default=0.0, description="Time phase")
-    mode_phi_x: float = Field(default=0.0, description="Space phase") -->
+### Case Selection
+- `case`: "optimization" (simulation case: "optimization", "resp", or "zir")
 
+### Simulation Parameters
 - `N_particles`: 40000 (number of particles)
 - `N_mesh`: 400 (mesh cells)
 - `t1`: 20.0 (end time)
@@ -97,39 +125,54 @@ All parameters are optional (defaults shown):
 - `vb`: 3.0 (beam velocity)
 - `vth`: 1.0 (beam width)
 - `pos_sample`: false (whether to sample positions randomly)
+- `seed`: 0 (random seed)
+
+### Optimization Parameters (only used for "optimization" case)
 - `n_steps`: 10 (number of optimization steps)
 - `lr`: 0.1 (learning rate)
-- `seed`: 0 (random seed)
-- `mode_n`: 1 (time mode index)
-- `mode_m`: 1 (space mode index)
-- `mode_A`: 1e5 (mode amplitude)
-- `mode_phi_t`: 0.0 (time phase)
-- `mode_phi_x`: 0.0 (space phase)
+- `mode_n`: 1 (time mode index for initial FourierActuator)
+- `mode_m`: 1 (space mode index for initial FourierActuator)
+- `mode_A`: 1e5 (mode amplitude for initial FourierActuator)
+- `mode_phi_t`: 0.0 (time phase for initial FourierActuator)
+- `mode_phi_x`: 0.0 (space phase for initial FourierActuator)
 
 ## Output
 
 All outputs are returned in a JSON object.
-<!--     train_losses: Array[(None,), Float64] = Field(description="Training losses at each optimization step")
-    final_loss: float = Field(description="Final training loss")
-    
-    # Simulation results after optimization
-    positions: Array[(None, None), Float32] = Field(description="Particle positions over time (Nt, Np)")
-    velocities: Array[(None, None), Float32] = Field(description="Particle velocities over time (Nt, Np)")
-    E_field: Array[(None, None), Float32] = Field(description="Electric field over time (Nt, N_mesh)")
-    E_ext: Array[(None, None), Float32] = Field(description="External electric field over time (Nt, N_mesh)")
-    rho: Array[(None, None), Float32] = Field(description="Density over time (Nt, N_mesh)")
-    momentum: Array[(None, None), Float32] = Field(description="Momentum over time (Nt, N_mesh)")
-    energy: Array[(None, None), Float32] = Field(description="Energy over time (Nt, N_mesh)")
-    ts: Array[(None,), Float32] = Field(description="Time array") -->
-- `train_losses`: Training losses at each optimization step
-- `final_loss`: Final training loss
+
+### Optimization-specific outputs (only populated for "optimization" case)
+- `train_losses`: Training losses at each optimization step (empty array for "resp" and "zir" cases)
+- `final_loss`: Final training loss (0.0 for "resp" and "zir" cases)
+
+### Simulation results (all cases)
 - `positions`: Particle positions over time (Nt, Np)
 - `velocities`: Particle velocities over time (Nt, Np)
 - `E_field`: Electric field over time (Nt, N_mesh)
-- `E_ext`: External electric field over time (Nt, N_mesh)
+- `E_ext`: External electric field over time (Nt, N_mesh) - zero for "zir" case
 - `rho`: Density over time (Nt, N_mesh)
 - `momentum`: Momentum over time (Nt, N_mesh)
 - `energy`: Energy over time (Nt, N_mesh)
 - `ts`: Time array
+
+### Generated Artifacts
+
+The API also generates and logs the following artifacts (saved in the run directory):
+
+- **Plots**:
+  - Optimization case: saved in `plots/` subdirectory
+  - Resp case: saved in `plots/resp/` subdirectory
+  - Zir case: saved in `plots/zir/` subdirectory
+  
+  Plot files include:
+  - `external_field.png`: External electric field visualization (optimization and resp cases only)
+  - `scatter.mp4`: Particle scatter animation
+  - `density.png`: Density evolution
+  - `momentum.png`: Momentum evolution
+  - `energy.png`: Energy evolution
+  - `density_modes_spectrum.png` and `density_modes_evolution.png`: Density mode analysis
+  - `momentum_modes_spectrum.png` and `momentum_modes_evolution.png`: Momentum mode analysis
+  - `energy_modes_spectrum.png` and `energy_modes_evolution.png`: Energy mode analysis
+
+- **Model checkpoints** (optimization case only, saved in `model/` subdirectory)
 
 See API docs at http://localhost:8545/docs for full parameter list.

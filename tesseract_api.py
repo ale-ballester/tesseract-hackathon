@@ -40,6 +40,9 @@ from plotting import scatter_animation, plot_pde_solution, plot_modes
 
 class InputSchema(BaseModel):
     """Input schema for PIC-ROM optimization."""
+    # Case selection
+    case: str = Field(default="optimization", description="Case to run: 'optimization', 'resp', or 'zir'")
+    
     # Simulation parameters
     N_particles: int = Field(default=40000, description="Number of particles")
     N_mesh: int = Field(default=400, description="Number of mesh cells")
@@ -85,9 +88,51 @@ class OutputSchema(BaseModel):
 #
 
 
-def apply(inputs: InputSchema) -> OutputSchema:
-    """Run PIC simulation optimization with Fourier actuator control."""
-    # Set up random key
+def _get_run_dir():
+    """Determine the run directory for saving outputs."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.getcwd()
+    
+    # Check if current working directory is a run directory
+    if os.path.basename(cwd).startswith('run_') and os.path.isdir(cwd):
+        return cwd
+    
+    # Check for Tesseract environment variable
+    run_id = os.environ.get('TESSERACT_RUN_ID')
+    if run_id:
+        return os.path.join(base_dir, f"run_{run_id}")
+    
+    # Find run directories with logs and pick the one with most recently modified log file
+    run_dirs = glob.glob(os.path.join(base_dir, "run_*"))
+    if run_dirs:
+        # Find run directories with logs and get their most recent log file modification time
+        run_dir_candidates = []
+        for rd in run_dirs:
+            logs_dir = os.path.join(rd, "logs")
+            if os.path.isdir(logs_dir):
+                log_files = glob.glob(os.path.join(logs_dir, "*.log")) + \
+                           glob.glob(os.path.join(logs_dir, "*.csv"))
+                if log_files:
+                    # Get the most recent modification time of log files in this run directory
+                    max_mtime = max(os.path.getmtime(f) for f in log_files)
+                    run_dir_candidates.append((max_mtime, rd))
+        
+        if run_dir_candidates:
+            # Sort by most recent log file modification time
+            run_dir_candidates.sort(key=lambda x: x[0], reverse=True)
+            return run_dir_candidates[0][1]
+        else:
+            # No run directories with logs, use the most recently created run directory
+            run_dirs.sort(key=os.path.getmtime, reverse=True)
+            return run_dirs[0]
+    else:
+        # No run directories exist, create a new one
+        run_id = str(uuid.uuid4())
+        return os.path.join(base_dir, f"run_{run_id}")
+
+
+def _initialize_particles(inputs):
+    """Initialize particle positions and velocities."""
     key = jax.random.key(inputs.seed)
     key1, key2, key3 = jax.random.split(key, num=3)
     
@@ -106,139 +151,20 @@ def apply(inputs: InputSchema) -> OutputSchema:
     Nh = int(inputs.N_particles / 2)
     vel = vel.at[Nh:].set(-1 * vel[Nh:])
     
-    y0 = (pos, vel)
-    
-    # Initialize PIC simulation
-    pic = PICSimulation(
-        inputs.boxsize, inputs.N_particles, inputs.N_mesh, 
-        inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
-    )
-    
-    # Initialize Fourier actuator modes
-    modes = build_rfftn_modes_single(
-        pic.n_steps, pic.N_mesh, 
-        n=inputs.mode_n, m=inputs.mode_m, 
-        A=inputs.mode_A, phi_t=inputs.mode_phi_t, phi_x=inputs.mode_phi_x
-    )
-    modes = jnp.zeros_like(modes[:11, :11])
-    
-    E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
-    
-    # Determine run directory before optimization (so checkpoints can be saved there)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    cwd = os.getcwd()
-    
-    # Check if current working directory is a run directory
-    if os.path.basename(cwd).startswith('run_') and os.path.isdir(cwd):
-        run_dir = cwd
-    else:
-        # Check for Tesseract environment variable
-        run_id = os.environ.get('TESSERACT_RUN_ID')
-        if run_id:
-            run_dir = os.path.join(base_dir, f"run_{run_id}")
-        else:
-            # Find run directories with logs and pick the one with most recently modified log file
-            run_dirs = glob.glob(os.path.join(base_dir, "run_*"))
-            if run_dirs:
-                # Find run directories with logs and get their most recent log file modification time
-                run_dir_candidates = []
-                for rd in run_dirs:
-                    logs_dir = os.path.join(rd, "logs")
-                    if os.path.isdir(logs_dir):
-                        log_files = glob.glob(os.path.join(logs_dir, "*.log")) + \
-                                   glob.glob(os.path.join(logs_dir, "*.csv"))
-                        if log_files:
-                            # Get the most recent modification time of log files in this run directory
-                            max_mtime = max(os.path.getmtime(f) for f in log_files)
-                            run_dir_candidates.append((max_mtime, rd))
-                
-                if run_dir_candidates:
-                    # Sort by most recent log file modification time
-                    run_dir_candidates.sort(key=lambda x: x[0], reverse=True)
-                    run_dir = run_dir_candidates[0][1]
-                else:
-                    # No run directories with logs, use the most recently created run directory
-                    run_dirs.sort(key=os.path.getmtime, reverse=True)
-                    run_dir = run_dirs[0]
-            else:
-                # No run directories exist, create a new one
-                run_id = str(uuid.uuid4())
-                run_dir = os.path.join(base_dir, f"run_{run_id}")
-    
-    # Set up model checkpoint directory in run directory
-    model_dir = os.path.join(run_dir, "model")
-    os.makedirs(model_dir, exist_ok=True)
-    # Ensure trailing separator for path concatenation in optimize.py
-    # (optimize.py uses string concatenation: save_dir + save_name)
-    if not model_dir.endswith("/"):
-        model_dir = model_dir + "/"
-    
-    # Log optimization parameters
-    log_parameter("n_steps", inputs.n_steps)
-    log_parameter("lr", inputs.lr)
-    log_parameter("seed", inputs.seed)
-    log_parameter("N_particles", inputs.N_particles)
-    log_parameter("N_mesh", inputs.N_mesh)
-    log_parameter("t1", inputs.t1)
-    log_parameter("dt", inputs.dt)
-    log_parameter("boxsize", inputs.boxsize)
-    
-    # Define loss metric
-    def loss_metric(pic):
-        energy = jnp.mean((pic.E_field + pic.E_ext) ** 2)
-        return energy
-    
-    # Define logging callback for optimizer
-    def log_callback(log_type, **kwargs):
-        if log_type == "loss":
-            log_metric("train_loss", kwargs["loss"], step=kwargs["step"])
-            log_metric("step_time", kwargs["step_time"], step=kwargs["step"])
-        elif log_type == "checkpoint":
-            # Log checkpoint as artifact
-            checkpoint_path = kwargs["checkpoint_path"]
-            if os.path.exists(checkpoint_path):
-                log_artifact(checkpoint_path)
-        elif log_type == "training_complete":
-            pass  # Can add completion logging if needed
-    
-    # Run optimization with checkpoints saved in run directory
-    optimizer = Optimizer(
-        pic=pic, y0=y0, model=E_control, 
-        loss_metric=loss_metric, lr=inputs.lr,
-        save_dir=model_dir
-    )
-    
-    E_control, train_losses, _ = optimizer.train(
-        n_steps=inputs.n_steps,
-        save_every=100,
-        seed=inputs.seed,
-        print_status=True,
-        log_callback=log_callback
-    )
-    
-    # Run final simulation with optimized control
-    pic = PICSimulation(
-        inputs.boxsize, inputs.N_particles, inputs.N_mesh,
-        inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
-    )
-    
-    pic = pic.run_simulation(y0, E_control=E_control)
-    
-    # Log final training loss
-    if len(train_losses) > 0:
-        log_metric("final_loss", float(train_losses[-1]))
-    
-    # Use the same run_dir that was determined before optimization
-    # (run_dir is already set from the optimization section above)
-    plots_dir = os.path.join(run_dir, "plots")
+    return (pos, vel), Nh
+
+
+def _generate_plots(pic, inputs, Nh, plots_dir, E_control=None):
+    """Generate all plots and log them as artifacts."""
     os.makedirs(plots_dir, exist_ok=True)
     
-    # Plot external field
-    u = jax.vmap(E_control)(pic.ts)
-    external_field_path = os.path.join(plots_dir, "external_field.png")
-    plot_pde_solution(pic.ts, u, inputs.boxsize, name=r"External field", label=r"$E_{ext}$", save_path=external_field_path)
-    if os.path.exists(external_field_path):
-        log_artifact(external_field_path)
+    # Plot external field if control is provided
+    if E_control is not None:
+        u = jax.vmap(E_control)(pic.ts)
+        external_field_path = os.path.join(plots_dir, "external_field.png")
+        plot_pde_solution(pic.ts, u, inputs.boxsize, name=r"External field", label=r"$E_{ext}$", save_path=external_field_path)
+        if os.path.exists(external_field_path):
+            log_artifact(external_field_path)
     
     # Scatter animation
     scatter_path = os.path.join(plots_dir, "scatter.mp4")
@@ -263,37 +189,220 @@ def apply(inputs: InputSchema) -> OutputSchema:
         log_artifact(energy_path)
     
     # Plot modes (these create multiple files, so we log all of them)
-    density_modes_base = os.path.join(plots_dir, "density_modes")
-    plot_modes(pic.ts, pic.rho, max_mode_spect=10, max_mode_time=5, boxsize=inputs.boxsize, num=4, zero_mean=True, save_path=density_modes_base)
+    # plot_modes creates files with _spectrum.png and _evolution.png suffixes
+    density_modes_path = os.path.join(plots_dir, "density_modes.png")
+    plot_modes(pic.ts, pic.rho, max_mode_spect=10, max_mode_time=5, boxsize=inputs.boxsize, num=4, zero_mean=True, save_path=density_modes_path)
     for suffix in ["_spectrum.png", "_evolution.png"]:
-        mode_path = density_modes_base + suffix
+        mode_path = os.path.join(plots_dir, "density_modes" + suffix)
         if os.path.exists(mode_path):
             log_artifact(mode_path)
     
-    momentum_modes_base = os.path.join(plots_dir, "momentum_modes")
-    plot_modes(pic.ts, pic.momentum, max_mode_spect=10, max_mode_time=5, boxsize=inputs.boxsize, num=4, zero_mean=True, save_path=momentum_modes_base)
+    momentum_modes_path = os.path.join(plots_dir, "momentum_modes.png")
+    plot_modes(pic.ts, pic.momentum, max_mode_spect=10, max_mode_time=5, boxsize=inputs.boxsize, num=4, zero_mean=True, save_path=momentum_modes_path)
     for suffix in ["_spectrum.png", "_evolution.png"]:
-        mode_path = momentum_modes_base + suffix
+        mode_path = os.path.join(plots_dir, "momentum_modes" + suffix)
         if os.path.exists(mode_path):
             log_artifact(mode_path)
     
-    energy_modes_base = os.path.join(plots_dir, "energy_modes")
-    plot_modes(pic.ts, pic.energy, max_mode_spect=10, max_mode_time=5, boxsize=inputs.boxsize, num=4, zero_mean=True, save_path=energy_modes_base)
+    energy_modes_path = os.path.join(plots_dir, "energy_modes.png")
+    plot_modes(pic.ts, pic.energy, max_mode_spect=10, max_mode_time=5, boxsize=inputs.boxsize, num=4, zero_mean=True, save_path=energy_modes_path)
     for suffix in ["_spectrum.png", "_evolution.png"]:
-        mode_path = energy_modes_base + suffix
+        mode_path = os.path.join(plots_dir, "energy_modes" + suffix)
         if os.path.exists(mode_path):
             log_artifact(mode_path)
+
+
+def apply(inputs: InputSchema) -> OutputSchema:
+    """
+    Run PIC simulation with different cases:
+    - optimization: Optimizes the external field and then simulates with the trained external field
+    - resp: Runs simulation with an oscillatory external input (fixed Fourier actuator)
+    - zir: Runs simulation with zero input (no external field)
+    """
+    # Initialize particles
+    y0, Nh = _initialize_particles(inputs)
     
-    # Convert JAX arrays to numpy arrays for output
-    return OutputSchema(
-        train_losses=np.array(train_losses, dtype=np.float64),
-        final_loss=float(train_losses[-1]) if len(train_losses) > 0 else 0.0,
-        positions=np.array(pic.positions, dtype=np.float32),
-        velocities=np.array(pic.velocities, dtype=np.float32),
-        E_field=np.array(pic.E_field, dtype=np.float32),
-        E_ext=np.array(pic.E_ext, dtype=np.float32),
-        rho=np.array(pic.rho, dtype=np.float32),
-        momentum=np.array(pic.momentum, dtype=np.float32),
-        energy=np.array(pic.energy, dtype=np.float32),
-        ts=np.array(pic.ts, dtype=np.float32)
-    )
+    # Log common parameters
+    log_parameter("case", inputs.case)
+    log_parameter("seed", inputs.seed)
+    log_parameter("N_particles", inputs.N_particles)
+    log_parameter("N_mesh", inputs.N_mesh)
+    log_parameter("t1", inputs.t1)
+    log_parameter("dt", inputs.dt)
+    log_parameter("boxsize", inputs.boxsize)
+    
+    # Determine run directory
+    run_dir = _get_run_dir()
+    
+    if inputs.case == "optimization":
+        # Optimization case: Optimize external field, then simulate with trained field
+        # Initialize PIC simulation
+        pic = PICSimulation(
+            inputs.boxsize, inputs.N_particles, inputs.N_mesh, 
+            inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
+        )
+        
+        # Initialize Fourier actuator modes
+        modes = build_rfftn_modes_single(
+            pic.n_steps, pic.N_mesh, 
+            n=inputs.mode_n, m=inputs.mode_m, 
+            A=inputs.mode_A, phi_t=inputs.mode_phi_t, phi_x=inputs.mode_phi_x
+        )
+        modes = jnp.zeros_like(modes[:11, :11])
+        
+        E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
+        
+        # Set up model checkpoint directory in run directory
+        model_dir = os.path.join(run_dir, "model")
+        os.makedirs(model_dir, exist_ok=True)
+        # Ensure trailing separator for path concatenation in optimize.py
+        if not model_dir.endswith("/"):
+            model_dir = model_dir + "/"
+        
+        # Log optimization parameters
+        log_parameter("n_steps", inputs.n_steps)
+        log_parameter("lr", inputs.lr)
+        
+        # Define loss metric
+        def loss_metric(pic):
+            energy = jnp.mean((pic.E_field + pic.E_ext) ** 2)
+            return energy
+        
+        # Define logging callback for optimizer
+        def log_callback(log_type, **kwargs):
+            if log_type == "loss":
+                log_metric("train_loss", kwargs["loss"], step=kwargs["step"])
+                log_metric("step_time", kwargs["step_time"], step=kwargs["step"])
+            elif log_type == "checkpoint":
+                # Log checkpoint as artifact
+                checkpoint_path = kwargs["checkpoint_path"]
+                if os.path.exists(checkpoint_path):
+                    log_artifact(checkpoint_path)
+            elif log_type == "training_complete":
+                pass  # Can add completion logging if needed
+        
+        # Run optimization with checkpoints saved in run directory
+        optimizer = Optimizer(
+            pic=pic, y0=y0, model=E_control, 
+            loss_metric=loss_metric, lr=inputs.lr,
+            save_dir=model_dir
+        )
+        
+        E_control, train_losses, _ = optimizer.train(
+            n_steps=inputs.n_steps,
+            save_every=100,
+            seed=inputs.seed,
+            print_status=True,
+            log_callback=log_callback
+        )
+        
+        # Run final simulation with optimized control
+        pic = PICSimulation(
+            inputs.boxsize, inputs.N_particles, inputs.N_mesh,
+            inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
+        )
+        
+        pic = pic.run_simulation(y0, E_control=E_control)
+        
+        # Log final training loss
+        if len(train_losses) > 0:
+            log_metric("final_loss", float(train_losses[-1]))
+        
+        plots_dir = os.path.join(run_dir, "plots")
+        _generate_plots(pic, inputs, Nh, plots_dir, E_control=E_control)
+        
+        # Convert JAX arrays to numpy arrays for output
+        return OutputSchema(
+            train_losses=np.array(train_losses, dtype=np.float64),
+            final_loss=float(train_losses[-1]) if len(train_losses) > 0 else 0.0,
+            positions=np.array(pic.positions, dtype=np.float32),
+            velocities=np.array(pic.velocities, dtype=np.float32),
+            E_field=np.array(pic.E_field, dtype=np.float32),
+            E_ext=np.array(pic.E_ext, dtype=np.float32),
+            rho=np.array(pic.rho, dtype=np.float32),
+            momentum=np.array(pic.momentum, dtype=np.float32),
+            energy=np.array(pic.energy, dtype=np.float32),
+            ts=np.array(pic.ts, dtype=np.float32)
+        )
+    
+    elif inputs.case == "resp":
+        # Resp case: Simulation with oscillatory external input (fixed FourierActuator: n=3, m=5, A=1e5)
+        pic = PICSimulation(
+            inputs.boxsize, inputs.N_particles, inputs.N_mesh,
+            inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
+        )
+        
+        modes = build_rfftn_modes_single(pic.n_steps, pic.N_mesh, n=3, m=5, A=1e5, phi_t=0.0, phi_x=0.0)
+        E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
+        
+        pic = pic.run_simulation(y0, E_control=E_control)
+        
+        # Print E_control shape for debugging
+        u = jax.vmap(E_control)(pic.ts)
+        print("E_control shape: ", u.shape)
+        
+        plots_dir = os.path.join(run_dir, "plots", "resp")
+        _generate_plots(pic, inputs, Nh, plots_dir, E_control=E_control)
+        
+        # Convert JAX arrays to numpy arrays for output
+        return OutputSchema(
+            train_losses=np.array([0.0], dtype=np.float64),
+            final_loss=0.0,
+            positions=np.array(pic.positions, dtype=np.float32),
+            velocities=np.array(pic.velocities, dtype=np.float32),
+            E_field=np.array(pic.E_field, dtype=np.float32),
+            E_ext=np.array(pic.E_ext, dtype=np.float32),
+            rho=np.array(pic.rho, dtype=np.float32),
+            momentum=np.array(pic.momentum, dtype=np.float32),
+            energy=np.array(pic.energy, dtype=np.float32),
+            ts=np.array(pic.ts, dtype=np.float32)
+        )
+    
+    elif inputs.case == "zir":
+        # Zir case: Simulation with zero input (no external field), with mean-subtracted velocity
+        # Re-initialize particles with mean-subtracted velocity
+        pos, vel = y0
+        vel = vel - jnp.mean(vel)
+        y0_zir = (pos, vel)
+        
+        pic = PICSimulation(
+            inputs.boxsize, inputs.N_particles, inputs.N_mesh,
+            inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
+        )
+        
+        pic = pic.run_simulation(y0_zir)
+        
+        plots_dir = os.path.join(run_dir, "plots", "zir")
+        _generate_plots(pic, inputs, Nh, plots_dir, E_control=None)
+        
+        # Handle E_ext: if None or wrong shape, create zeros array with correct shape
+        E_field_array = np.array(pic.E_field, dtype=np.float32)
+        if pic.E_ext is None:
+            # Create zeros array with same shape as E_field
+            E_ext_array = np.zeros_like(E_field_array)
+        else:
+            try:
+                E_ext_array = np.array(pic.E_ext, dtype=np.float32)
+                # Ensure it's 2D with correct shape
+                if E_ext_array.ndim != 2 or E_ext_array.shape != E_field_array.shape:
+                    E_ext_array = np.zeros_like(E_field_array)
+            except (TypeError, ValueError, AttributeError):
+                # Fallback: create zeros array with same shape as E_field
+                E_ext_array = np.zeros_like(E_field_array)
+        
+        # Convert JAX arrays to numpy arrays for output
+        return OutputSchema(
+            train_losses=np.array([0.0], dtype=np.float64),
+            final_loss=0.0,
+            positions=np.array(pic.positions, dtype=np.float32),
+            velocities=np.array(pic.velocities, dtype=np.float32),
+            E_field=np.array(pic.E_field, dtype=np.float32),
+            E_ext=E_ext_array,
+            rho=np.array(pic.rho, dtype=np.float32),
+            momentum=np.array(pic.momentum, dtype=np.float32),
+            energy=np.array(pic.energy, dtype=np.float32),
+            ts=np.array(pic.ts, dtype=np.float32)
+        )
+    
+    else:
+        raise ValueError(f"Unknown case: {inputs.case}. Must be 'optimization', 'resp', or 'zir'.")
