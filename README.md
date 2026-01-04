@@ -3,7 +3,6 @@ This repository contains code for simulating and controlling a 1-D particle-in-c
 
 
 ---
-
 ## **Setup and installation**
 Ensure you have an appropriate JAX build for your platform. See [JAX installation instructions](https://docs.jax.dev/en/latest/installation.html) for more details.
 
