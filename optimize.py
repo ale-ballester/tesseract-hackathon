@@ -1,15 +1,12 @@
 import time
 import numpy as np
 
-import matplotlib.pyplot as plt
-
 import equinox as eqx
 import optax
 import jax
 import jax.numpy as jnp
 jax.config.update("jax_enable_x64", True)
 
-from dataloader import DataLoader
 from utils import make_dir
 
 class Optimizer():
@@ -50,7 +47,22 @@ class Optimizer():
         model = eqx.apply_updates(model, updates)
         return loss, model, opt_state
 
-    def train(self, n_steps, save_every=100, seed=0, print_status=True):
+    def train(self, n_steps, save_every=100, seed=0, print_status=True, log_callback=None):
+        """
+        Train the model.
+        
+        Args:
+            n_steps: Number of training steps
+            save_every: Save checkpoint every N steps
+            seed: Random seed
+            print_status: Whether to print status messages
+            log_callback: Optional callback function(log_type, **kwargs) for logging.
+                         Called with:
+                         - log_callback("step_start", step=step)
+                         - log_callback("loss", step=step, loss=loss, step_time=step_time)
+                         - log_callback("checkpoint", step=step, checkpoint_path=path)
+                         - log_callback("training_complete")
+        """
         make_step = eqx.filter_jit(self.make_step) # Do NOT mutate anything inside self.make_step from this point on, it is jitted already    
 
         make_dir(self.save_dir)
@@ -66,20 +78,39 @@ class Optimizer():
             if print_status:
                 print("--------------------")
                 print(f"Step: {step}")
+            if log_callback:
+                log_callback("step_start", step=step)
+            
             loader_key, train_loader_key = jax.random.split(loader_key)
             start = time.time()
             loss, self.model, opt_state = make_step(self.model, opt_state)
             end = time.time()
+            step_time = end - start
             train_losses.append(loss)
             loader_key, valid_loader_key = jax.random.split(loader_key)
-            if print_status: print(f"Train loss: {loss}")
+            
+            if print_status: 
+                print(f"Train loss: {loss}")
+            if log_callback:
+                log_callback("loss", step=step, loss=float(loss), step_time=step_time)
+            
             if step % save_every == 0 and step > 0 and step < n_steps-1:
-                if print_status: print(f"Saving model at step {step}")
                 checkpoint_name = self.save_dir+self.save_name+f"_{step}"
+                if print_status: 
+                    print(f"Saving model at step {step}")
                 self.model.save_model(checkpoint_name)
-        if print_status: print("Training complete.")
+                if log_callback:
+                    log_callback("checkpoint", step=step, checkpoint_path=checkpoint_name)
+        
+        if print_status: 
+            print("Training complete.")
         checkpoint_name = self.save_dir+self.save_name+"_final"
-        if print_status: print(f"Saving model at {checkpoint_name}")
+        if print_status: 
+            print(f"Saving model at {checkpoint_name}")
         self.model.save_model(checkpoint_name)
+        if log_callback:
+            log_callback("checkpoint", step=n_steps, checkpoint_path=checkpoint_name)
+            log_callback("training_complete")
 
         return self.model, train_losses, valid_losses
+

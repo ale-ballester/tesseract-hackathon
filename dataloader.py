@@ -59,3 +59,4 @@ class DataLoader:
                 #subset = subset[:,:,nobs] 
                 yield self.ts[ind_times], subset_in, subset_out
                 start = end
+

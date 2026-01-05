@@ -196,7 +196,7 @@ def continuous_lqr(A, B, Q=None, R=None):
 def discrete_lqr(A, B, Q=None, R=None):
     """
     Discrete-time LQR for x_{k+1} = A x_k + B u_k.
-    Minimizes sum_{k=0}^\infty (x_k^T Q x_k + u_k^T R u_k).
+    Minimizes sum_{k=0}^\\infty (x_k^T Q x_k + u_k^T R u_k).
     Returns K, P, eigvals(A - B K)
     """
     A_np = jnp.asarray(A)
@@ -228,3 +228,4 @@ def discrete_lqr(A, B, Q=None, R=None):
 
     eig_cl = jnp.linalg.eigvals(A_np - B_np @ K)
     return jnp.asarray(K), jnp.asarray(P), jnp.asarray(eig_cl)
+

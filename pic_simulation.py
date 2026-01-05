@@ -180,3 +180,4 @@ class PICSimulation(eqx.Module):
                 is_leaf=lambda x: x is None,
             )
         return new_obj
+
