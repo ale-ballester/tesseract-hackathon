@@ -1,4 +1,5 @@
 # Differentiable PIC Optimization Tesseract
+[Video Demo](https://youtu.be/YC1PX6RKqSU)
 
 ![Scatter Animation - Optimization](docs/scatter_opt_5000step_small.gif)
 
