@@ -22,7 +22,7 @@ Install runtime dependencies (if running locally):
 
 ```bash
 conda activate hck_tct
-pip install tesseract-core tesseract-core[runtime]
+pip install -r tesseract_requirements.txt
 ```
 
 Build the tesseract:
