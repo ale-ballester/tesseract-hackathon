@@ -246,13 +246,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
             inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
         )
         
-        # Initialize Fourier actuator modes
-        modes = build_rfftn_modes_single(
-            pic.n_steps, pic.N_mesh, 
-            n=inputs.mode_n, m=inputs.mode_m, 
-            A=inputs.mode_A, phi_t=inputs.mode_phi_t, phi_x=inputs.mode_phi_x
-        )
-        modes = jnp.zeros_like(modes[:inputs.number_of_time_modes+1, :inputs.number_of_space_modes+1])
+        modes = jnp.zeros((inputs.number_of_time_modes+1, inputs.number_of_space_modes+1))
         
         E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
         

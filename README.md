@@ -58,7 +58,7 @@ The API will be available at:
 
 The API supports three different simulation cases:
 
-1. **optimization** (default): Runs gradient-based optimization to find optimal Fourier actuator control parameters that minimize the electric field energy, then simulates with the trained external field.
+1. **optimization** (default): Runs gradient-based optimization to find optimal Fourier actuator control parameters that minimize the electric field energy, then simulates with the trained external field. Modes are initialized as zeros and optimized through backpropagation.
 
 2. **resp**: Runs a simulation with an oscillatory external input (configurable Fourier actuator control) to observe system response to a known control input.
 
@@ -87,7 +87,9 @@ curl -X POST http://localhost:8545/apply \
       "t1": 10.0,
       "n_steps": 5,
       "lr": 0.05,
-      "seed": 42
+      "seed": 42,
+      "number_of_time_modes": 10,
+      "number_of_space_modes": 10
     }
   }'
 ```
@@ -149,15 +151,17 @@ All parameters are optional (defaults shown):
 ### Optimization Parameters (only used for "optimization" case)
 - `n_steps`: 10 (number of optimization steps)
 - `lr`: 0.1 (learning rate)
+- `number_of_time_modes`: 10 (number of time modes to use, maximum time mode index - determines size of zero-initialized modes array)
+- `number_of_space_modes`: 10 (number of space modes to use, maximum space mode index - determines size of zero-initialized modes array)
 
-### Fourier Actuator Parameters (used for "optimization" and "resp" cases)
-- `mode_n`: 1 (time mode index for FourierActuator, default: 1 for optimization, can be set for resp)
-- `mode_m`: 1 (space mode index for FourierActuator, default: 1 for optimization, can be set for resp)
-- `mode_A`: 1e5 (mode amplitude for FourierActuator)
-- `mode_phi_t`: 0.0 (time phase for FourierActuator)
-- `mode_phi_x`: 0.0 (space phase for FourierActuator)
-- `number_of_time_modes`: 10 (number of time modes to use, maximum time mode index)
-- `number_of_space_modes`: 10 (number of space modes to use, maximum space mode index)
+### Fourier Actuator Parameters (only used for "resp" case)
+- `mode_n`: 1 (time mode index for FourierActuator initialization)
+- `mode_m`: 1 (space mode index for FourierActuator initialization)
+- `mode_A`: 1e5 (mode amplitude for FourierActuator initialization)
+- `mode_phi_t`: 0.0 (time phase for FourierActuator initialization)
+- `mode_phi_x`: 0.0 (space phase for FourierActuator initialization)
+
+**Note**: The "optimization" case initializes modes as zeros and learns optimal values through gradient-based optimization. The "resp" case uses the specified mode parameters to create a fixed oscillatory external input.
 
 ## Output
 
