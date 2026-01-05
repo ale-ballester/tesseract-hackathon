@@ -1,4 +1,4 @@
-# Differentiable PIC Optimization Tesseract
+# DiffPIC – Differentiable Particle-in-Cell Optimization with Tesseract
 [Video Demo](https://youtu.be/YC1PX6RKqSU)
 
 Real-time plasma control is essential for achieving reliable fusion ignition. A central challenge lies in the multi-physics, multi-scale nature of fusion plasmas, coupled with the prohibitive computational cost of first-principles modeling. As a first step toward a real-time control workflow built on differentiable, scalable physics models and an optimization outer loop, we have developed a differentiable particle-in-cell (PIC) code integrated with an optimization framework based on Tesseract. The proposed framework is intentionally general, allowing future replacement of the PIC solver with reduced-order modeling (ROM) surrogates and seamless incorporation of experimental data for data assimilation. We leverage Tesseract API to ease the training and executable loop for potential users. As a proof of concept, we demonstrate control of the classical two-stream instability using an external electric potential, following the seminal work [arXiv:2504.10435].
