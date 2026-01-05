@@ -65,6 +65,10 @@ class InputSchema(BaseModel):
     mode_A: float = Field(default=1e5, description="Mode amplitude")
     mode_phi_t: float = Field(default=0.0, description="Time phase")
     mode_phi_x: float = Field(default=0.0, description="Space phase")
+    
+    # Number of modes to use (for FourierActuator initialization)
+    number_of_time_modes: int = Field(default=10, description="Number of time modes to use (maximum time mode index)")
+    number_of_space_modes: int = Field(default=10, description="Number of space modes to use (maximum space mode index)")
 
 
 class OutputSchema(BaseModel):
@@ -248,7 +252,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
             n=inputs.mode_n, m=inputs.mode_m, 
             A=inputs.mode_A, phi_t=inputs.mode_phi_t, phi_x=inputs.mode_phi_x
         )
-        modes = jnp.zeros_like(modes[:11, :11])
+        modes = jnp.zeros_like(modes[:inputs.number_of_time_modes+1, :inputs.number_of_space_modes+1])
         
         E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
         
@@ -326,13 +330,18 @@ def apply(inputs: InputSchema) -> OutputSchema:
         )
     
     elif inputs.case == "resp":
-        # Resp case: Simulation with oscillatory external input (fixed FourierActuator: n=3, m=5, A=1e5)
+        # Resp case: Simulation with oscillatory external input (configurable FourierActuator)
         pic = PICSimulation(
             inputs.boxsize, inputs.N_particles, inputs.N_mesh,
             inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
         )
         
-        modes = build_rfftn_modes_single(pic.n_steps, pic.N_mesh, n=3, m=5, A=1e5, phi_t=0.0, phi_x=0.0)
+        modes = build_rfftn_modes_single(
+            pic.n_steps, pic.N_mesh, 
+            n=inputs.mode_n, m=inputs.mode_m, 
+            A=inputs.mode_A, phi_t=inputs.mode_phi_t, phi_x=inputs.mode_phi_x
+        )
+        modes = jnp.zeros_like(modes[:inputs.number_of_time_modes+1, :inputs.number_of_space_modes+1])
         E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
         
         pic = pic.run_simulation(y0, E_control=E_control)

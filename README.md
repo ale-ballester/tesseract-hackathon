@@ -60,7 +60,7 @@ The API supports three different simulation cases:
 
 1. **optimization** (default): Runs gradient-based optimization to find optimal Fourier actuator control parameters that minimize the electric field energy, then simulates with the trained external field.
 
-2. **resp**: Runs a simulation with an oscillatory external input (fixed Fourier actuator control with n=3, m=5, A=1e5) to observe system response to a known control input.
+2. **resp**: Runs a simulation with an oscillatory external input (configurable Fourier actuator control) to observe system response to a known control input.
 
 3. **zir**: Runs a simulation with zero input (no external field), with mean-subtracted initial velocities.
 
@@ -103,7 +103,10 @@ curl -X POST http://localhost:8545/apply \
       "N_particles": 40000,
       "N_mesh": 400,
       "t1": 20.0,
-      "seed": 0
+      "seed": 42,
+      "mode_n": 3,
+      "mode_m": 5,
+      "mode_A": 1e5
     }
   }'
 ```
@@ -119,7 +122,7 @@ curl -X POST http://localhost:8545/apply \
       "N_particles": 40000,
       "N_mesh": 400,
       "t1": 20.0,
-      "seed": 0
+      "seed": 42
     }
   }'
 ```
@@ -146,11 +149,15 @@ All parameters are optional (defaults shown):
 ### Optimization Parameters (only used for "optimization" case)
 - `n_steps`: 10 (number of optimization steps)
 - `lr`: 0.1 (learning rate)
-- `mode_n`: 1 (time mode index for initial FourierActuator)
-- `mode_m`: 1 (space mode index for initial FourierActuator)
-- `mode_A`: 1e5 (mode amplitude for initial FourierActuator)
-- `mode_phi_t`: 0.0 (time phase for initial FourierActuator)
-- `mode_phi_x`: 0.0 (space phase for initial FourierActuator)
+
+### Fourier Actuator Parameters (used for "optimization" and "resp" cases)
+- `mode_n`: 1 (time mode index for FourierActuator, default: 1 for optimization, can be set for resp)
+- `mode_m`: 1 (space mode index for FourierActuator, default: 1 for optimization, can be set for resp)
+- `mode_A`: 1e5 (mode amplitude for FourierActuator)
+- `mode_phi_t`: 0.0 (time phase for FourierActuator)
+- `mode_phi_x`: 0.0 (space phase for FourierActuator)
+- `number_of_time_modes`: 10 (number of time modes to use, maximum time mode index)
+- `number_of_space_modes`: 10 (number of space modes to use, maximum space mode index)
 
 ## Output
 
