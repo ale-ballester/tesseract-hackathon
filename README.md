@@ -15,21 +15,19 @@ PIC (Particle-In-Cell) simulation with Fourier actuator control for plasma simul
 ## Installation
 Create a conda environment:
 ```bash
-conda create -n hck_tct jax -c conda-forge
-```
-
-Build the tesseract:
-
-```bash
-conda activate hck_tct
-tesseract build .
+conda create -n hck_tct python=3.13 jax -c conda-forge    
 ```
 
 Install runtime dependencies (if running locally):
 
 ```bash
-conda activate hck_tct
-pip install tesseract-core[runtime]
+pip install tesseract-core tesseract-core[runtime]
+```
+
+Build the tesseract:
+
+```bash
+tesseract build .
 ```
 
 ## Running the Server
@@ -37,7 +35,6 @@ pip install tesseract-core[runtime]
 Start the HTTP server:
 
 ```bash
-conda activate hck_tct
 tesseract-runtime serve --host 0.0.0.0 --port 8545
 ```
 
