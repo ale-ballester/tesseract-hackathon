@@ -16,6 +16,12 @@ PIC (Particle-In-Cell) simulation with Fourier actuator control for plasma simul
 - **zir**: Runs simulation with zero input (no external field)
 
 ## Installation
+
+Pre-requisites:
+- [Conda](https://docs.conda.io/en/latest/)
+- [Docker](https://docs.docker.com/get-docker/)
+- [ffmpeg](https://ffmpeg.org/download.html)
+
 Create a conda environment:
 ```bash
 conda create -n hck_tct python=3.13 jax -c conda-forge    
