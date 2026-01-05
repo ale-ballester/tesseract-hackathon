@@ -23,7 +23,6 @@ build_config:
     - [control.py, /tesseract/control.py]
     - [optimize.py, /tesseract/optimize.py]
     - [utils.py, /tesseract/utils.py]
-    - [dataloader.py, /tesseract/dataloader.py]
     - [plotting.py, /tesseract/plotting.py]
 
   # Additional Dockerfile commands to run during the build process
