@@ -1,4 +1,4 @@
-# PIC-ROM Optimization Tesseract
+# Differentiable PIC Optimization Tesseract
 
 ![Scatter Animation - Optimization](docs/scatter_opt_5000step_small.gif)
 
