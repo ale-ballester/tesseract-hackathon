@@ -67,8 +67,8 @@ class InputSchema(BaseModel):
     mode_phi_x: float = Field(default=0.0, description="Space phase")
     
     # Number of modes to use (for FourierActuator initialization)
-    number_of_time_modes: int = Field(default=10, description="Number of time modes to use (maximum time mode index)")
-    number_of_space_modes: int = Field(default=10, description="Number of space modes to use (maximum space mode index)")
+    number_of_time_modes: int = Field(default=11, description="Number of time modes to use (maximum time mode index)")
+    number_of_space_modes: int = Field(default=11, description="Number of space modes to use (maximum space mode index)")
 
 
 class OutputSchema(BaseModel):
@@ -246,7 +246,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
             inputs.n0, inputs.dt, inputs.t1, t0=0, higher_moments=True
         )
         
-        modes = jnp.zeros((inputs.number_of_time_modes+1, inputs.number_of_space_modes+1))
+        modes = jnp.zeros((inputs.number_of_time_modes, inputs.number_of_space_modes))
         
         E_control = FourierActuator(pic.n_steps, pic.N_mesh, modes=modes)
         

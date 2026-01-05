@@ -88,8 +88,8 @@ curl -X POST http://localhost:8545/apply \
       "n_steps": 5,
       "lr": 0.05,
       "seed": 42,
-      "number_of_time_modes": 10,
-      "number_of_space_modes": 10
+      "number_of_time_modes": 11,
+      "number_of_space_modes": 11
     }
   }'
 ```
@@ -151,8 +151,8 @@ All parameters are optional (defaults shown):
 ### Optimization Parameters (only used for "optimization" case)
 - `n_steps`: 10 (number of optimization steps)
 - `lr`: 0.1 (learning rate)
-- `number_of_time_modes`: 10 (number of time modes to use, maximum time mode index - determines size of zero-initialized modes array)
-- `number_of_space_modes`: 10 (number of space modes to use, maximum space mode index - determines size of zero-initialized modes array)
+- `number_of_time_modes`: 11 (number of time modes to use, maximum time mode index - determines size of zero-initialized modes array)
+- `number_of_space_modes`: 11 (number of space modes to use, maximum space mode index - determines size of zero-initialized modes array)
 
 ### Fourier Actuator Parameters (only used for "resp" case)
 - `mode_n`: 1 (time mode index for FourierActuator initialization)
