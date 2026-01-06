@@ -238,4 +238,8 @@ Particle dynamics visualization showing the evolution of the particle distributi
 
 *Note: The optimization case uses 5000 optimization steps with all other parameters at default values. The ZIR case uses default parameters with zero external field input.*
 
+### Interpretation
+
+We have observed that the optimized external electric field successfully delays the onset of the two-stream instability. This can be seen in the phase space and first few Fourier modes of the charge density, comparing the plots between the "optimization case" and "zero input case". Additional work might be needed to optimize the external field in a broad function space for better control. Nevertheless, this showcases the success of our DiffPIC and its optimization loop leveraging Tesseract.
+
 See API docs at http://localhost:8545/docs for full parameter list.
